@@ -34,7 +34,7 @@ c) Điền thông tin nhân viên để chuẩn bị tạo hợp đồng
 # Phần 2: Cài đặt SQL (viết Scrips)  
 ## 1) Đăng ký hợp đồng mới  
 - Viết Store procedure tiếp nhận hợp đồng: Lưu thông tin khách hàng, danh sách tài sản (kèm giá trị định giá), Số tiền vay gốc, thiết lập Deadline1 (Hạn thanh toán thỏa thuận), Deadline2 (Gia hạn thanh toán theo lãi kép).
-- Thêm cột GiaTriTaiSan và bảng ChiTietTaiSan:  
+- Thêm cột GiaTriTaiSan vào bảng ChiTietTaiSan:  
 <img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/6b21aa18-4466-4a9a-90d4-c4e34666647f" /><br>
 
 - Tạo Store Procedure:  
@@ -216,7 +216,7 @@ VALUES ('HD008', 'KH008', 'NV004', 50000000, 5, '2026-04-01 15:09:25', '2026-05-
 <img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/f22c2288-77f3-4993-9f59-6f93d40ca62e" /><br>
 
 # Phần 6: Sự kiện bổ sung: Gia hạn hợp đồng
-- Viết Store Procedure thực hiện gia hạn hợp đồng khi khách đến trả hết lãi cảu hiện tại và cập nhập lại ngày vay và hạn trả. Đồng thời ghi vào phiếu thu thông tin về số tiền lãi đóng
+- Viết Store Procedure thực hiện gia hạn hợp đồng khi khách đến trả hết lãi của hiện tại và cập nhập lại ngày vay và hạn trả. Đồng thời ghi vào phiếu thu thông tin về số tiền lãi đóng
 ``` SQL
 CREATE PROCEDURE sp_GiaHanHopDong
     @MaHD VARCHAR(10),
