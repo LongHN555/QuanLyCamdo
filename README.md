@@ -188,6 +188,95 @@ RETURN
 <br>
 
 # Phần 5: Quản lý thanh lý tài sản
+- Thêm cột TrangThai vào bảng ChiTietTaiSan và điền thông tin (Sẵn sàng thanh lý/ Đã bán thanh lý)
+``` SQL
+ALTER TABLE TaiSanChiTiet
+ADD TrangThai NVARCHAR(50)
+```
+- Trigger cập nhập trạng thái Quá hạn (nợ xấu) của trạng thái hợp đồng: (chạy sau khi thêm/sửa)
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/0718522c-bbd0-4c99-8e3a-d84c54e0999b" /> <br>
+- Kiểm thử:
+``` SQL
+-- Thêm một hợp đồng thử nghiệm đã quá hạn
+INSERT INTO HopDong (MaHD, MaKH, MaNV, TienVay, Lai, NgayVay, NgayTra, IsSold, TrangThai)
+VALUES ('HD008', 'KH008', 'NV004', 50000000, 5, '2026-04-01 15:09:25', '2026-05-10', 0, N'Chưa trả');
+```
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/2ae8f52d-1a6e-4305-b4fe-94d4fd07ce8c" /><br>  
+
+- Viết Trigger chuyển TrangThai của bảng TaiSanChiTiet thành "Sẵn sàng thanh lý" khi HopDong ở TrangThai = "Quá hạn (Nợ xấu) và ngày vượt quá deadline2:
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/ef5455b1-df11-4b82-8617-dd67c61c7b71" /><br>
+- Kiểm thử:
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/e346c04e-b92e-4c76-ab67-0ca97d6de137" /><br>
+
+
+- Viết trigger chuyển TrangThai của bảng TaiSanChiTiet thành "Đã bán thanh lý" sau khi TrangThai của HopDong chuyển sang "Đã thanh lý"
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/93cc27b0-b384-44ae-b66a-ef6fdcb9cce4" /><br>
+
+- Chạy thử: (Các trường NULL là do không thỏa mãn điều kiện)
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/f22c2288-77f3-4993-9f59-6f93d40ca62e" /><br>
+
+# Phần 6: Sự kiện bổ sung: Gia hạn hợp đồng
+- Viết Store Procedure thực hiện gia hạn hợp đồng khi khách đến trả hết lãi cảu hiện tại và cập nhập lại ngày vay và hạn trả. Đồng thời ghi vào phiếu thu thông tin về số tiền lãi đóng
+``` SQL
+CREATE PROCEDURE sp_GiaHanHopDong
+    @MaHD VARCHAR(10),
+    @MaNV VARCHAR(10),
+    @SoThangGiaHan INT -- Số tháng muốn gia hạn thêm
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @TongLaiHienTai DECIMAL(14, 2);
+    DECLARE @NgayHienTai DATE = GETDATE();
+    DECLARE @NgayTraMoi DATE;
+
+    -- 1. Tính toán số tiền lãi khách phải trả đến thời điểm hiện tại
+    -- Sử dụng hàm tính lãi tổng hợp (bao gồm lãi đơn và lãi kép nếu có)
+    IF (@NgayHienTai <= (SELECT NgayTra FROM HopDong WHERE MaHD = @MaHD))
+    BEGIN
+        SELECT @TongLaiHienTai = TienLaiD1 
+        FROM dbo.fn_TienPhaiTraTruocDeadline1(@MaHD);
+    END
+    ELSE
+    BEGIN
+        SELECT @TongLaiHienTai = TongTatCaTienLai 
+        FROM dbo.fn_TienPhaiTraQuaHanD2(@MaHD, @NgayHienTai);
+    END
+
+    -- 2. Ghi nhận vào bảng PhieuThu (Chỉ thu tiền lãi)
+    INSERT INTO PhieuThu (MaPhieu, MaHD, MaNV, NgayDong, TienGocThu, TienLaiThu, TrangThai)
+    VALUES (
+        'PT_' + @MaHD,
+        @MaHD,
+        @MaNV,
+        @NgayHienTai,
+        0, -- Tiền gốc không đổi
+        @TongLaiHienTai, -- Thu toàn bộ lãi
+        N'Gia hạn - Thu lãi'
+    );
+
+    -- 3. Cập nhật Hợp đồng sang kỳ hạn mới
+    -- Ngày vay mới tính từ hôm nay, Deadline 1 dời đi @SoThangGiaHan
+    SET @NgayTraMoi = DATEADD(MONTH, @SoThangGiaHan, @NgayHienTai);
+
+    UPDATE HopDong
+    SET NgayVay = @NgayHienTai,
+        NgayTra = @NgayTraMoi,
+        TrangThai = N'Đang vay' 
+    WHERE MaHD = @MaHD;
+
+    PRINT N'Gia hạn thành công. Tổng lãi đã thu: ' + CAST(@TongLaiHienTai AS VARCHAR);
+    PRINT N'Hạn trả mới (Deadline 1): ' + CONVERT(VARCHAR, @NgayTraMoi, 103);
+END;
+```
+- Giả sử khách hàng KH007 đến trả lãi và có nhu cầu gia hạn thêm:
+<img width="959" height="539" alt="image" src="https://github.com/user-attachments/assets/2fc029cc-15f5-4a3b-92ea-0d9f7a7a0cde" />
+
+
+
+
+
+
 
 
 
